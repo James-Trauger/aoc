@@ -1,9 +1,11 @@
+use core::fmt;
 
 enum Avl<T: Ord> {
     Leaf(T),
     Node(T, i32, Box<Avl<T>>, Box<Avl<T>>),
     Empty
 }
+
 use crate::avl::Avl::*;
 impl<T: Ord> Avl<T> {
 
@@ -24,10 +26,10 @@ impl<T: Ord> Avl<T> {
         }
     }
 
-    fn change_height(&mut self, delta: i32) -> {
+    fn change_height(&mut self, delta: i32)  {
         match self {
             Node(val, h, left, right) => *h += delta,
-            _ => unreachable!()
+            _ => () // do nothing
         }
     }
 
