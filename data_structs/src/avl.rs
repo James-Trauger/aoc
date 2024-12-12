@@ -1,4 +1,5 @@
 use core::fmt;
+use std::borrow::BorrowMut;
 
 enum Avl<T: Ord> {
     Leaf(T),
@@ -65,7 +66,7 @@ impl<T: Ord> Avl<T> {
                 } else {
                     (left, right.insert(target))
                 };
-                // TODO rotate after insertion
+                
                 let balance = right.node_height() - left.node_height();
                 // left subtree is not balanced
                 if balance < -1 {
@@ -88,7 +89,7 @@ impl<T: Ord> Avl<T> {
                     }
                 }
             },
-            Empty => Box::new(self)
+            Empty => Box::new(Leaf(target))
         }
     }
     // performs a single rotation to the left on the subtree rooted at self
@@ -96,13 +97,19 @@ impl<T: Ord> Avl<T> {
         match self {
             Empty => Empty,
             Leaf(v) => Leaf(v),
-            Node(val, h, left, right) => {
+            Node(val, _, mut left, right) => {
                     match *right {
                         Empty => Empty,
-                        Leaf(right_val) => Node(right_val, h, 
-                            Box::new(Node(val, h-1, left, Box::new(Empty))), Box::new(Empty)),
-                        Node(right_val, righth, right_left, right_right) => {
-                            Node(right_val, h, Box::new(Node(val, h-1, left, right_left)), right_right)
+                        Leaf(right_val) => Node(right_val, left.node_height()+2, 
+                            Box::new(Node(val, left.node_height()+1, left, Box::new(Empty))), Box::new(Empty)),
+                        Node(right_val, righth, right_left, mut right_right) => {
+                             // right_right subtree is pulled up by one level
+                             right_right.change_height(1);
+                             // left subtree is pulled down by one level
+                             left.change_height(-1);
+                            let left_height = left.node_height().max(right_left.node_height()) + 1;
+                            let new_height = righth.max(left_height);
+                            Node(right_val, new_height, Box::new(Node(val, left_height, left, right_left)), right_right)
                         }
                     }
                 }
@@ -113,13 +120,19 @@ impl<T: Ord> Avl<T> {
         match self {
             Empty => Empty,
             Leaf(v) => Leaf(v),
-            Node(val, h, left, right) => {
+            Node(val, _, left, mut right) => {
                     match *left {
                         Empty => Empty,
-                        Leaf(left_val) => Node(left_val, h, Box::new(Empty),
-                            Box::new(Node(val, h-1, Box::new(Empty), right))),
-                        Node(left_val, lefth, left_left, left_right) => {
-                            Node(left_val, lefth+1, left_left, Box::new(Node(val, h-1, left_right, right)))
+                        Leaf(left_val) => Node(left_val, right.node_height()+2, Box::new(Empty),
+                            Box::new(Node(val, right.node_height()+1, Box::new(Empty), right))),
+                        Node(left_val, lefth, mut left_left, left_right) => {
+                            // left_left subtree is pulled up by one level
+                            left_left.change_height(1);
+                            // right subtree is pulled down by one level
+                            right.change_height(-1);
+                            let right_height = left_right.node_height().max(right.node_height()) + 1;
+                            let new_height = lefth.max(right_height) + 1;
+                            Node(left_val, new_height, left_left, Box::new(Node(val, right_height, left_right, right)))
                         }
                     }
                 }
@@ -146,11 +159,7 @@ impl<T: Ord> Avl<T> {
             _ => Box::new(self)
         }
     }
-    }
-
-fn height<T: Ord>(node: &Option<Box<Avl<T>>>) -> i32 {
-    match node {
-        None => 0,
-        Some(node) => node.node_height()
-    }
 }
+
+
+
