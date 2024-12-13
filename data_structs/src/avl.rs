@@ -92,7 +92,7 @@ impl<T: Ord> Avl<T> {
             Empty => Box::new(Leaf(target))
         }
     }
-    // performs a single rotation to the left on the subtree rooted at self
+   // performs a single rotation to the left on the subtree rooted at self
     fn left_rotate(self) -> Avl<T> {
         match self {
             Empty => Empty,
