@@ -50,23 +50,9 @@ impl<T: Ord> Avl<T> {
         }
     }
 
-    fn insert(self, target: T) -> Box<Avl<T>> {
+    fn balance(self) -> Box<Avl<T>> {
         match self {
-            // normal tree insertion
-            Leaf(val) => {
-                if target <= val {
-                    Box::new(Node(val, 1, Box::new(Leaf(target)), Box::new(Empty)))
-                } else {
-                    Box::new(Node(val, 1, Box::new(Empty), Box::new(Leaf(target))))
-                }
-            },
             Node(val, h, left, right) => {
-                let (left, right) = if target <= val {
-                    (left.insert(target), right)
-                } else {
-                    (left, right.insert(target))
-                };
-                
                 let balance = right.node_height() - left.node_height();
                 // left subtree is not balanced
                 if balance < -1 {
@@ -78,7 +64,7 @@ impl<T: Ord> Avl<T> {
                         // left-right rotation
                         Node(val, h+1, left, right).left_right()
                     }
-                } else {
+                } else if balance > 1 {
                     // right-right heavy
                     if right.balance_factor() > 0 {
                         // left rotation
@@ -87,11 +73,100 @@ impl<T: Ord> Avl<T> {
                         // right-left rotation
                         Node(val, h+1, left, right).right_left()
                     }
+                } else {
+                    Box::new(Node(val, h, left, right))
                 }
+            },
+            _ => Box::new(self)
+        }
+    }
+
+    fn insert(self, target: T) -> Box<Avl<T>> {
+        match self {
+            // normal tree insertion
+            Leaf(val) => {
+                if target <= val {
+                    Box::new(Node(val, 1, Box::new(Leaf(target)), Box::new(Empty)))
+                } else {
+                    Box::new(Node(val, 1, Box::new(Empty), Box::new(Leaf(target))))
+                }
+            },
+            Node(val, _, left, right) => {
+                let (left, right) = if target <= val {
+                    (left.insert(target), right)
+                } else {
+                    (left, right.insert(target))
+                };
+                // update heights
+                let new_height = left.node_height().max(right.node_height()) + 1;
+                // balance after insertion
+                Node(val, new_height, left, right).balance()
             },
             Empty => Box::new(Leaf(target))
         }
     }
+
+    fn delete(self, target: &T) -> Box<Avl<T>> {
+        match self {
+            Empty => Box::new(Empty),
+            Leaf(val) => {
+                if val == *target {
+                    // remove the leaf
+                    Box::new(Empty)
+                } else {
+                    Box::new(Leaf(val))
+                }
+            },
+            Node(val, _, mut left, right) => {
+                let x = if *target < val {
+                    // check the left subtree
+                    let left = left.delete(target);
+                    // update height
+                    let new_height = left.node_height().max(right.node_height()) + 1;
+                    Box::new(Node(val, new_height, left, right))
+                } else if *target > val {
+                    // check the right subtree
+                    let right = right.delete(target);
+                    // update height
+                    let new_height = left.node_height().max(right.node_height()) + 1;
+                    Box::new(Node(val, new_height, left, right))
+                } else {
+                    // remove the node, replace with the left node
+                    // replace the current node with the largest value in the left subtree
+                    let replacement = left.largest();
+                    match replacement {
+                        // replace current node with the right instead
+                        None => right,
+                        Some(large) => {
+                            // delete the replacement from the left subtree
+                            //let new_left = left.delete(large);
+                            Box::new(Empty)
+                        }
+                    }
+                };
+                Box::new(Empty)
+            }
+        }
+    }
+
+    // finds the largest value
+    fn largest(&mut self) -> Option<&T> {
+        match self {
+            Empty => None,
+            Node(_, _, _, right) => {
+                match *right {
+                    Leaf(val) => {
+                        //*right = Box::new(Empty);
+                        None
+                    },
+                    _ => right.largest()
+                }
+            },
+            Leaf(large) => Some(large)
+        }
+    }
+
+
    // performs a single rotation to the left on the subtree rooted at self
     fn left_rotate(self) -> Avl<T> {
         match self {
